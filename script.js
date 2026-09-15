@@ -1,31 +1,22 @@
 /* ============ Yordamchi ============ */
 var kaAll = function (sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); };
 var kaOne = function (sel, ctx) { return (ctx || document).querySelector(sel); };
+var API_BASE_URL = 'https://api.kichikalloma.uz';
+
 var getApiBaseUrl = function () {
-    if (window.location.protocol === 'file:') {
-        return 'https://api.kichikalloma.uz';
+    if (typeof window !== 'undefined' && window.API_BASE_URL) {
+        return window.API_BASE_URL.replace(/\/+$/, '');
     }
-    if (window.location.port && window.location.port !== '3000' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        return 'https://api.kichikalloma.uz';
-    }
-    return '';
+    return API_BASE_URL;
 };
 
 var kaFixImgUrl = function (url, fallback) {
     if (!url) return fallback || '';
     if (url.indexOf('http://') === 0 || url.indexOf('https://') === 0) {
-        if (window.location.protocol === 'file:' || (window.location.port && window.location.port !== '3000')) {
-            return url;
-        }
-        try {
-            var u = new URL(url, window.location.origin);
-            return u.pathname;
-        } catch (e) {
-            return url;
-        }
+        return url;
     }
-    if (window.location.protocol === 'file:' && url.indexOf('/') === 0) {
-        return 'https://api.kichikalloma.uz' + url;
+    if (url.indexOf('/') === 0) {
+        return getApiBaseUrl() + url;
     }
     return url;
 };
