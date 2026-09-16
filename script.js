@@ -58,7 +58,7 @@ var i18nData = {
         nav_cta: "Sayohatni boshlash",
         hero_badge: "Kosmik ta'lim ekotizimi",
         hero_title: 'Farzandingizning ekran vaqtini uning <span class="hl">kelajagi uchun sarmoyaga</span> aylantiring.',
-        hero_sub: "Kichik Alloma — loyiha asoschisi va rahbari (Founder, Project Manager) Shoxrux Komiljonov tomonidan yaratilgan, 8 ta rivojlanish sayyorasi (Yer, Mars, Uran, Venera, Neptun, Saturn, Merkuriy, Yupiter) orqali bolalarni mustaqil fikrlashga, intizomga va o'z hissiyotlarini boshqarishga o'rgatuvchi yagona kosmik ta'lim ekotizimidir.",
+        hero_sub: "Kichik Alloma — loyiha asoschisi va rahbari Shoxrux Komiljonov tomonidan yaratilgan va bolalarni rivojlanishi uchun tuzilgan ta'lim ekotizimi.",
         hero_cta_primary: "Sayohatni boshlash",
         hero_cta_ghost: "Qanday ishlaydi?",
         planets_badge: "Kosmik ekotizim",
@@ -141,7 +141,8 @@ var i18nData = {
         footer_founder_label: "Loyiha asoschisi (Founder):",
         footer_founder_credit: "Loyiha asoschisi va rahbari: <strong>Shoxrux Komiljonov</strong> (Founder, Project Manager)",
         footer_contact: "Aloqa uchun:",
-        footer_rights: "Kichik Alloma. Barcha huquqlar himoyalangan."
+        footer_rights: "Kichik Alloma. Barcha huquqlar himoyalangan.",
+        footer_privacy: "Maxfiylik siyosati"
     },
     RU: {
         nav_sayyoralar: "Планеты",
@@ -235,7 +236,8 @@ var i18nData = {
         footer_founder_label: "Основатель проекта (Founder):",
         footer_founder_credit: "Основатель и руководитель проекта: <strong>Шохрух Комилджонов</strong> (Founder, Project Manager)",
         footer_contact: "Контакты:",
-        footer_rights: "Kichik Alloma. Все права защищены."
+        footer_rights: "Kichik Alloma. Все права защищены.",
+        footer_privacy: "Политика конфиденциальности"
     },
     EN: {
         nav_sayyoralar: "Planets",
@@ -329,7 +331,8 @@ var i18nData = {
         footer_founder_label: "Project Founder:",
         footer_founder_credit: "Founder & Project Manager: <strong>Shoxrux Komiljonov</strong>",
         footer_contact: "Contact us:",
-        footer_rights: "Kichik Alloma. All rights reserved."
+        footer_rights: "Kichik Alloma. All rights reserved.",
+        footer_privacy: "Privacy Policy"
     }
 };
 
@@ -420,105 +423,147 @@ initDropdowns();
 /* ============ COSMOS STATS ANIMATED COUNTER & BACKEND ============ */
 function animateCounter(el, target, duration, hasPlus) {
     if (!el) return;
+    target = Math.max(0, parseInt(target, 10) || 0);
+
+    // Oldingi animatsiyani bekor qilish (bir nechta animatsiya to'qnash kelmasligi uchun)
+    if (el._kaAnimId) {
+        window.cancelAnimationFrame(el._kaAnimId);
+        el._kaAnimId = null;
+    }
+
+    var currentText = (el.textContent || '').replace(/[^\d]/g, '');
+    var startVal = typeof el._kaCurVal === 'number' ? el._kaCurVal : (parseInt(currentText, 10) || 0);
     var startTime = null;
-    duration = duration || 1800;
+    duration = duration || 1500;
 
     function step(timestamp) {
         if (!startTime) startTime = timestamp;
         var progress = Math.min((timestamp - startTime) / duration, 1);
         var ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-        var current = Math.floor(ease * target);
+        var current = Math.floor(startVal + ease * (target - startVal));
+        el._kaCurVal = current;
         el.textContent = current.toLocaleString('en-US') + (hasPlus && progress === 1 ? '+' : '');
         if (progress < 1) {
-            window.requestAnimationFrame(step);
+            el._kaAnimId = window.requestAnimationFrame(step);
         } else {
+            el._kaCurVal = target;
             el.textContent = target.toLocaleString('en-US') + (hasPlus ? '+' : '');
+            el._kaAnimId = null;
         }
     }
-    window.requestAnimationFrame(step);
+    el._kaAnimId = window.requestAnimationFrame(step);
 }
 
 function initCosmosStats() {
     var statsBanner = kaOne('#cosmosStats');
     if (!statsBanner) return;
 
-    var animated = false;
+    var visEl = kaOne('#statVisitors');
+    var plEl = kaOne('#statPlanets');
+    var tmEl = kaOne('#statTeam');
+
+    // Keshdagi ma'lumotlarni o'qish
+    var cachedVisitors = 0;
+    try {
+        cachedVisitors = parseInt(localStorage.getItem('ka_total_visitors'), 10) || 0;
+    } catch (e) {}
+
     var statsData = {
-        visitors: 1,
+        visitors: cachedVisitors > 0 ? cachedVisitors : 60,
         planets: 8,
         teams: 6
     };
 
-    function runCounters() {
-        if (animated) return;
-        animated = true;
-
-        var visEl = kaOne('#statVisitors');
-        var plEl = kaOne('#statPlanets');
-        var tmEl = kaOne('#statTeam');
-
-        if (visEl) animateCounter(visEl, statsData.visitors, 1800, false);
-        if (plEl) animateCounter(plEl, statsData.planets, 1200, false);
-        if (tmEl) animateCounter(tmEl, statsData.teams, 1400, false);
+    // Agar keshda mavjud bo'lsa, elementda darhol ko'rsatish (1 soni qotib qolmasligi uchun)
+    if (visEl && cachedVisitors > 0) {
+        visEl.textContent = cachedVisitors.toLocaleString('en-US');
+        visEl.setAttribute('data-target', cachedVisitors);
     }
 
-    // Backend statistikasini olish va real API ma'lumotlari bilan yangilash
-    fetch(getApiBaseUrl() + '/api/website/stats')
+    var isVisible = false;
+
+    function renderCounters(duration) {
+        if (visEl) animateCounter(visEl, statsData.visitors, duration || 1600, false);
+        if (plEl) animateCounter(plEl, statsData.planets, duration || 1200, false);
+        if (tmEl) animateCounter(tmEl, statsData.teams, duration || 1400, false);
+    }
+
+    function applyStats(data) {
+        if (!data) return;
+        var newVisitors = null;
+
+        if (typeof data.totalVisitors === 'number') {
+            newVisitors = data.totalVisitors;
+        } else if (typeof data.visitors === 'number') {
+            newVisitors = data.visitors;
+        } else if (data.data && typeof data.data.totalVisitors === 'number') {
+            newVisitors = data.data.totalVisitors;
+        }
+
+        if (newVisitors !== null && newVisitors > 0) {
+            statsData.visitors = newVisitors;
+            try {
+                localStorage.setItem('ka_total_visitors', String(newVisitors));
+            } catch (e) {}
+            if (visEl) visEl.setAttribute('data-target', newVisitors);
+        }
+
+        if (typeof data.totalPlanets === 'number' && data.totalPlanets > 0) {
+            statsData.planets = data.totalPlanets;
+            if (plEl) plEl.setAttribute('data-target', data.totalPlanets);
+        }
+
+        if (typeof data.totalTeams === 'number' && data.totalTeams > 0) {
+            statsData.teams = data.totalTeams;
+            if (tmEl) tmEl.setAttribute('data-target', data.totalTeams);
+        }
+
+        if (isVisible) {
+            renderCounters(900);
+        }
+    }
+
+    // 1. Tashrifni serverda qayd etish (POST)
+    try {
+        fetch(getApiBaseUrl() + '/api/website/track-visit', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+        })
         .then(function (res) { return res.ok ? res.json() : null; })
-        .then(function (data) {
-            if (!data) return;
-
-            if (typeof data.totalVisitors === 'number') {
-                statsData.visitors = data.totalVisitors;
-            }
-            if (typeof data.totalPlanets === 'number') {
-                statsData.planets = data.totalPlanets;
-            }
-            if (typeof data.totalTeams === 'number') {
-                statsData.teams = data.totalTeams;
-            }
-
-            var visEl = kaOne('#statVisitors');
-            var plEl = kaOne('#statPlanets');
-            var tmEl = kaOne('#statTeam');
-
-            if (animated) {
-                if (visEl) animateCounter(visEl, statsData.visitors, 1000, false);
-                if (plEl) animateCounter(plEl, statsData.planets, 800, false);
-                if (tmEl) animateCounter(tmEl, statsData.teams, 800, false);
-            }
+        .then(function (res) {
+            if (res) applyStats(res);
         })
         .catch(function () {});
-
-    // Saytga tashrifni serverda real hisoblab borish
-    try {
-        fetch(getApiBaseUrl() + '/api/website/track-visit', { method: 'POST' })
-            .then(function (res) { return res.ok ? res.json() : null; })
-            .then(function (res) {
-                if (res && typeof res.totalVisitors === 'number') {
-                    statsData.visitors = res.totalVisitors;
-                    var visEl = kaOne('#statVisitors');
-                    if (visEl && animated) {
-                        animateCounter(visEl, statsData.visitors, 800, false);
-                    }
-                }
-            })
-            .catch(function () {});
     } catch (e) {}
 
-    // Scroll qilib kelganda animatsiyani ishga tushirish
+    // 2. Sayt umumiy statistikasini yuklash (GET - adblockerlardan xoli)
+    try {
+        fetch(getApiBaseUrl() + '/api/website/stats', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+            if (data) applyStats(data);
+        })
+        .catch(function () {});
+    } catch (e) {}
+
+    // Ekran ko'rinishiga kelganda animatsiyani ishga tushirish
     if ('IntersectionObserver' in window) {
         var obs = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
                 if (entry.isIntersecting) {
-                    runCounters();
+                    isVisible = true;
+                    renderCounters(1600);
                     obs.unobserve(entry.target);
                 }
             });
-        }, { threshold: 0.15 });
+        }, { threshold: 0.1 });
         obs.observe(statsBanner);
     } else {
-        runCounters();
+        isVisible = true;
+        renderCounters(1600);
     }
 }
 

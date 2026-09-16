@@ -56,4 +56,10 @@
       <image:title>Kosmik Sertifikat</image:title>
     </image:image>
   </url>
+  <url>
+    <loc>https://kichikalloma.uz/privcy</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
